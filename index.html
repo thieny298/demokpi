@@ -17708,11 +17708,17 @@
         // Months that have actual data
         const DATA_MONTHS = ['T11_2025', 'T12_2025', 'T1_2026', 'T2_2026', 'T3_2026', 'T4_2026']
 
+        function hasMonthValues(monthly, monthKey) {
+            if (!monthly || !monthly[monthKey]) return false
+            const month = monthly[monthKey]
+            return ['pageviews', 'so_bai', 'pv_bai', 'video', 'tong_pv', 'du_thieu'].some(key => month[key] != null && Number(month[key]) !== 0)
+        }
+
         function hasData(monthKey) {
             if (DATA_MONTHS.includes(monthKey)) return true
             const data = (typeof state !== 'undefined' && state.data) ? state.data : RAW_DATA
-            const hasReporter = Object.values(data.reporters || {}).some(rep => rep.monthly && Object.prototype.hasOwnProperty.call(rep.monthly, monthKey))
-            const hasDept = Object.values(data.departments || {}).some(dep => dep.monthly && Object.prototype.hasOwnProperty.call(dep.monthly, monthKey))
+            const hasReporter = Object.values(data.reporters || {}).some(rep => hasMonthValues(rep.monthly, monthKey))
+            const hasDept = Object.values(data.departments || {}).some(dep => hasMonthValues(dep.monthly, monthKey))
             return hasReporter || hasDept
         }
 
@@ -17905,12 +17911,6 @@
         function render() {
             if (isAdminRoute()) { renderAdminPage(); return }
             if (state.showLogin) { renderLogin(); return }
-            const latestMonth = getLatestAvailableMonth()
-            const currentIndex = MONTHS.findIndex(m => m.key === state.selectedMonth)
-            const latestIndex = MONTHS.findIndex(m => m.key === latestMonth)
-            if (latestMonth && latestIndex > currentIndex) {
-                state.selectedMonth = latestMonth
-            }
             app.innerHTML = ''
             renderHeader()
             const layout = el('div', 'layout')
