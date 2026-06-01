@@ -45,7 +45,7 @@
         .header {
             background: #fff;
             border-bottom: 1px solid var(--border);
-            padding: 0 24px;
+            padding: 0 16px;
             display: flex;
             align-items: center;
             justify-content: flex-start;
@@ -294,12 +294,12 @@
 
         .month-chips {
             display: flex;
-            gap: 4px;
+            gap: 6px;
             flex-wrap: wrap;
         }
 
         .chip {
-            padding: 5px 10px;
+            padding: 6px 10px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
@@ -940,6 +940,24 @@
             .menu-btn {
                 display: flex !important;
                 margin-right: 15px;
+            }
+
+            .menu-btn svg path {
+                transform-origin: center;
+                transform-box: fill-box;
+                transition: transform 0.2s ease, opacity 0.2s ease;
+            }
+
+            .menu-btn.open svg .line1 {
+                transform: translateY(7px) rotate(45deg);
+            }
+
+            .menu-btn.open svg .line2 {
+                opacity: 0;
+            }
+
+            .menu-btn.open svg .line3 {
+                transform: translateY(-7px) rotate(-45deg);
             }
         }
 
@@ -17723,6 +17741,7 @@
             loginError: '',
             uploadMsg: '',
             uploadStatus: '',
+            sidebarOpen: false,
             chartSort: false,  // false = sidebar order, true = sort by % desc
         }
 
@@ -17786,15 +17805,94 @@
         // ─── RENDER ──────────────────────────────────────────────────────────────
         const app = document.getElementById('app')
 
+        function getBasePath() {
+            return window.location.pathname.replace(/\/(index\.html)?$/, '/').replace(/\/admin\/?$/, '/')
+        }
+        function isAdminRoute() {
+            return window.location.hash === '#admin' || window.location.pathname.endsWith('/admin') || window.location.pathname.endsWith('/admin/')
+        }
+        function normalizeAdminPath() {
+            if (window.location.hash === '#admin' && !window.location.pathname.endsWith('/admin')) {
+                history.replaceState(null, '', getBasePath() + 'admin')
+            }
+        }
+        function goAdmin() {
+            window.location.href = getBasePath() + 'admin'
+        }
+        function goDashboard() {
+            const path = window.location.pathname.replace(/\/admin\/?$/, '')
+            window.location.href = path || '/'
+        }
+
         function toggleSidebar() {
+            state.sidebarOpen = !state.sidebarOpen
             const sb = document.querySelector('.sidebar')
             const ov = document.querySelector('.sidebar-overlay')
+            const btn = document.querySelector('.menu-btn')
             if (!sb) return
-            sb.classList.toggle('open')
-            if (ov) ov.classList.toggle('show')
+            sb.classList.toggle('open', state.sidebarOpen)
+            if (ov) ov.classList.toggle('show', state.sidebarOpen)
+            if (btn) btn.classList.toggle('open', state.sidebarOpen)
+        }
+
+        function renderAdminPage() {
+            normalizeAdminPath()
+            app.innerHTML = ''
+            renderHeader(true)
+            if (!state.isAdmin) {
+                renderLogin(true)
+                return
+            }
+            const page = el('div', 'upload-panel')
+            page.style.margin = '24px auto'
+            page.style.maxWidth = '760px'
+            page.innerHTML = `
+        <div class="modal-head">
+          <div><div class="modal-title">Cập nhật dữ liệu tháng mới</div>
+          <div class="modal-sub">Upload 2 file Excel để cập nhật số liệu</div></div>
+          <button class="close-btn" onclick="goDashboard()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="background:var(--bg);border-radius:8px;padding:14px 16px;font-size:13px;margin-bottom:20px;line-height:1.7">
+            <strong>Chọn tháng cập nhật:</strong><br>
+            <select id="uploadMonth" class="form-input" style="margin-top:8px;width:auto">
+              ${MONTHS.map(m => `<option value="${m.key}" ${m.key === state.selectedMonth ? 'selected' : ''}>${m.label}</option>`).join('')}
+            </select>
+          </div>
+
+          <div style="margin-bottom:20px">
+            <div style="font-size:13px;font-weight:700;margin-bottom:8px">📄 File Sản lượng theo tài khoản</div>
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:8px">Cột cần có: <strong>Tên đầy đủ</strong> (hoặc Bút danh) và <strong>Số bài</strong></div>
+            <div class="upload-zone" id="dropBai" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event,'bai')" onclick="document.getElementById('fileBai').click()">
+              <div class="upload-icon">📋</div>
+              <div class="upload-text" id="labelBai">Kéo thả hoặc click để chọn file</div>
+              <div class="upload-sub">SanLuongTheoTaiKhoan_ThángX.xlsx</div>
+            </div>
+            <input type="file" id="fileBai" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this,'bai')">
+          </div>
+
+          <div style="margin-bottom:20px">
+            <div style="font-size:13px;font-weight:700;margin-bottom:8px">🎬 File Video (Author)</div>
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:8px">Cột cần có: <strong>Author</strong> và <strong>Plays</strong></div>
+            <div class="upload-zone" id="dropVideo" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event,'video')" onclick="document.getElementById('fileVideo').click()">
+              <div class="upload-icon">🎥</div>
+              <div class="upload-text" id="labelVideo">Kéo thả hoặc click để chọn file</div>
+              <div class="upload-sub">author_Video_TX_202X.xlsx</div>
+            </div>
+            <input type="file" id="fileVideo" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this,'video')">
+          </div>
+
+          ${state.uploadMsg ? `<div class="upload-result ${state.uploadStatus}">${state.uploadMsg}</div>` : ''}
+
+          <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="processUpload()">
+            ⬆ Cập nhật dữ liệu
+          </button>
+        </div>`
+            app.appendChild(page)
         }
 
         function render() {
+            if (isAdminRoute()) { renderAdminPage(); return }
             if (state.showLogin) { renderLogin(); return }
             app.innerHTML = ''
             renderHeader()
@@ -17818,7 +17916,32 @@
             return e
         }
 
-        function renderLogin() {
+        function renderLogin(showHeader = false) {
+            if (showHeader) {
+                app.innerHTML = ''
+                renderHeader(true)
+                const wrapper = el('div', 'login-page')
+                wrapper.innerHTML = `
+      <div class="login-card">
+        <div class="login-logo">
+          <svg width="130" height="29" viewBox="0 0 153 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clip-path="url(#c)"><path d="M135.421 3.3456C142.526 3.3456 145.01 5.72006 145.973 6.49271V3.3456H153.001V31.9334H146.108V19.6653C146.108 18.497 145.01 15.2933 142.43 15.2556V31.9334H135.421V3.3456ZM126.891 25.4884H134.035V31.9899H120.286V3.3456H134.035V9.84711H126.891V14.6903H132.995V20.1553H126.891V25.4884ZM112.642 3.3456H119.285V31.9334H112.642V3.3456ZM93.7914 3.3456C100.896 3.3456 103.38 5.72006 104.343 6.49271V3.3456H111.391V31.9334H104.497V19.6653C104.497 18.497 103.4 15.2933 100.819 15.2556V31.9334H93.8106V3.3456H93.7914ZM82.2383 3.3456H88.862V31.9334H82.219V19.1942H78.7339V31.9334H72.0908V3.3456H78.7339V13.8611H82.219L82.2383 3.3456ZM52.9705 3.3456C60.0756 3.3456 62.5595 5.72006 63.5223 6.49271V3.3456H70.5697V31.9334H63.6763V19.6653C63.6763 18.497 62.5788 15.2933 59.9986 15.2556V31.9334H52.9897V3.3456H52.9705ZM34.1775 31.9899H41.3019V28.4848H44.7678V31.9711H51.8922V3.3456C38.3559 3.36444 34.1967 13.0131 34.1775 19.5523V31.9899ZM44.7871 13.6538V22.5486H41.3404V20.2307C41.3019 18.0824 42.8615 13.6538 44.7871 13.6538ZM26.514 3.3456H33.157V31.9334H26.514V19.1942H23.0673V31.9334H16.4243V3.3456H23.0673V13.8611H26.5525V3.3456H26.514ZM0.519531 3.3456H15.4808V8.90486H11.3987V31.9146H4.60162V8.92371H0.519531V3.3456ZM125.582 2.12067L127.083 0.650767C127.276 0.462318 127.661 0.462318 127.854 0.650767L129.356 2.12067C129.548 2.30912 129.721 2.47873 129.356 2.87447C128.99 3.23253 128.797 3.06292 128.585 2.87447L127.449 1.76262L126.313 2.87447C126.121 3.06292 125.947 3.23253 125.543 2.87447C125.177 2.49757 125.389 2.30912 125.582 2.12067Z" fill="#0098D1"/></g>
+            <defs><clipPath id="c"><rect width="152.481" height="33" fill="white" transform="translate(0.519531 0.5)"/></clipPath></defs>
+          </svg>
+        </div>
+        <div class="login-title">KPI Dashboard 2026</div>
+        <div class="login-sub">Đăng nhập tài khoản Admin</div>
+        ${state.loginError ? `<div class="alert alert-error">${state.loginError}</div>` : ''}
+        <div class="form-group">
+          <label class="form-label">Mật khẩu</label>
+          <input class="form-input" type="password" id="adminPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">Đăng nhập</button>
+        <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="goDashboard()">← Về dashboard</button>
+      </div>`
+                app.appendChild(wrapper)
+                return
+            }
             app.innerHTML = `
       <div class="login-page">
         <div class="login-card">
@@ -17854,10 +17977,10 @@
             }
         }
 
-        function renderHeader() {
+        function renderHeader(isAdminPage = false) {
             const h = el('div', 'header')
             h.innerHTML = `
-        <button class="menu-btn btn btn-sm" style="display:none;padding:8px 10px" onclick="toggleSidebar()">☰</button>
+        <button class="menu-btn btn btn-sm${state.sidebarOpen ? ' open' : ''}" style="display:none;padding:8px 10px" onclick="toggleSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-[18px] w-[18px]" aria-hidden="true"><path class="line1" d="M4 5h16"></path><path class="line2" d="M4 12h16"></path><path class="line3" d="M4 19h16"></path></svg></button>
         <div class="header-logo">
           <svg width="120" height="26" viewBox="0 0 153 34" fill="none" xmlns="http://www.w3.org/2000/svg">
             <g clip-path="url(#ch)"><path d="M135.421 3.3456C142.526 3.3456 145.01 5.72006 145.973 6.49271V3.3456H153.001V31.9334H146.108V19.6653C146.108 18.497 145.01 15.2933 142.43 15.2556V31.9334H135.421V3.3456ZM126.891 25.4884H134.035V31.9899H120.286V3.3456H134.035V9.84711H126.891V14.6903H132.995V20.1553H126.891V25.4884ZM112.642 3.3456H119.285V31.9334H112.642V3.3456ZM93.7914 3.3456C100.896 3.3456 103.38 5.72006 104.343 6.49271V3.3456H111.391V31.9334H104.497V19.6653C104.497 18.497 103.4 15.2933 100.819 15.2556V31.9334H93.8106V3.3456H93.7914ZM82.2383 3.3456H88.862V31.9334H82.219V19.1942H78.7339V31.9334H72.0908V3.3456H78.7339V13.8611H82.219L82.2383 3.3456ZM52.9705 3.3456C60.0756 3.3456 62.5595 5.72006 63.5223 6.49271V3.3456H70.5697V31.9334H63.6763V19.6653C63.6763 18.497 62.5788 15.2933 59.9986 15.2556V31.9334H52.9897V3.3456H52.9705ZM34.1775 31.9899H41.3019V28.4848H44.7678V31.9711H51.8922V3.3456C38.3559 3.36444 34.1967 13.0131 34.1775 19.5523V31.9899ZM44.7871 13.6538V22.5486H41.3404V20.2307C41.3019 18.0824 42.8615 13.6538 44.7871 13.6538ZM26.514 3.3456H33.157V31.9334H26.514V19.1942H23.0673V31.9334H16.4243V3.3456H23.0673V13.8611H26.5525V3.3456H26.514ZM0.519531 3.3456H15.4808V8.90486H11.3987V31.9146H4.60162V8.92371H0.519531V3.3456ZM125.582 2.12067L127.083 0.650767C127.276 0.462318 127.661 0.462318 127.854 0.650767L129.356 2.12067C129.548 2.30912 129.721 2.47873 129.356 2.87447C128.99 3.23253 128.797 3.06292 128.585 2.87447L127.449 1.76262L126.313 2.87447C126.121 3.06292 125.947 3.23253 125.543 2.87447C125.177 2.49757 125.389 2.30912 125.582 2.12067Z" fill="#0098D1"/></g>
@@ -17866,10 +17989,12 @@
           <span class="header-title">KPI Dashboard 2026</span>
         </div>
         <div class="header-right">
-          ${state.isAdmin
-                    ? `<button class="btn btn-primary btn-sm" onclick="state.showUpload=true;render()">⬆ Cập nhật dữ liệu</button>
+          ${isAdminPage
+                    ? `<button class="btn btn-sm" onclick="goDashboard()">← Dashboard</button>`
+                    : state.isAdmin
+                        ? `<button class="btn btn-primary btn-sm" onclick="goAdmin()">⬆ Cập nhật dữ liệu</button>
                <button class="btn btn-sm" onclick="state.isAdmin=false;render()">Đăng xuất</button>`
-                    : `<button class="btn btn-sm" onclick="state.showLogin=true;render()">🔐 Admin</button>`
+                        : `<button class="btn btn-sm" onclick="goAdmin()">Admin</button>`
                 }
         </div>`
             app.appendChild(h)
@@ -17877,7 +18002,7 @@
 
         function renderSidebar(parent) {
             const sb = el('div', 'sidebar')
-            // Chuyên mục section
+  
             let deptHTML = `<div class="sidebar-section">
         <div class="sidebar-label">Chuyên mục</div>`
             const depts = Object.keys(state.data.departments).filter(d => !['Hà Nội', 'Đà Nẵng', 'Cần Thơ', 'Nha Trang'].includes(d))
@@ -17907,9 +18032,11 @@
           <div class="sidebar-dot"></div>Tất cả phóng viên</div>
       </div>` + deptHTML + vpHTML
 
+            sb.classList.toggle('open', state.sidebarOpen)
             parent.appendChild(sb)
             const ov = document.createElement('div')
             ov.className = 'sidebar-overlay'
+            ov.classList.toggle('show', state.sidebarOpen)
             ov.onclick = toggleSidebar
             parent.appendChild(ov)
         }
