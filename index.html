@@ -83,9 +83,9 @@
         }
 
         .btn {
-            padding: 8px 14px;
+            padding: 10px 16px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             border: 1px solid var(--border);
@@ -117,7 +117,7 @@
             }
 
         .btn-sm {
-            padding: 5px 10px;
+            padding: 6px 10px;
             font-size: 12px;
         }
 
@@ -17952,15 +17952,16 @@
               <defs><clipPath id="c"><rect width="152.481" height="33" fill="white" transform="translate(0.519531 0.5)"/></clipPath></defs>
             </svg>
           </div>
-          <div class="login-title">KPI Dashboard 2026</div>
-          <div class="login-sub">Đăng nhập tài khoản Admin</div>
+         
+          <div class="login-sub">KPI DASHBOARD  2026</div>
+           <div class="login-title">Đăng nhập</div>
           ${state.loginError ? `<div class="alert alert-error">${state.loginError}</div>` : ''}
           <div class="form-group">
             <label class="form-label">Mật khẩu</label>
             <input class="form-input" type="password" id="adminPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
           </div>
           <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">Đăng nhập</button>
-          <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="state.showLogin=false;render()">← Xem dashboard</button>
+          <button class="btn" style="width:100%;justify-content:center;margin-top:12px" onclick="state.showLogin=false;render()">← Xem dashboard</button>
         </div>
       </div>`
         }
