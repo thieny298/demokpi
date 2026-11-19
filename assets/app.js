@@ -255,7 +255,7 @@
   function areaChart(values, kpiM, m, opts) {
     opts = opts || {}
     const id = 'c' + (++chartSeq)
-    const W = chartW(), H = W < 640 ? 240 : 230, L = 44, R = 10, T = 12, B = 28
+    const W = opts.wide && window.innerWidth >= 1024 ? 1180 : chartW(), H = W < 640 ? 240 : opts.wide && W > 640 ? 250 : 230, L = 44, R = 10, T = 12, B = 28
     const iw = W - L - R, ih = H - T - B
     const n = values.length
     const max = niceMax(Math.max(kpiM || 0, ...values.filter(v => v != null)) * 1.08)
@@ -561,10 +561,8 @@
     const lm = months()[m]
     const growth = all.prev ? (all.cum / (all.prev * all.exp / 100) - 1) * 100 : null
     const under = mainUnits().filter(u => unitStats(u, m).st !== 'good').length
-    const al = alerts(m).slice(0, 4)
-    const ranked = cms().map(u => ({ u, s: unitStats(u, m) })).sort((x, y) => y.s.p - x.s.p)
-    const topPV = D().reporters.filter(r => r.type === 'pv').map(r => [r, repCum(r, m, true).total]).sort((a, b) => b[1] - a[1]).slice(0, 9).map(x => x[0])
-    const md = media()
+    const ranked = mainUnits().map(u => ({ u, s: unitStats(u, m) })).sort((x, y) => y.s.p - x.s.p)
+    const topPV = D().reporters.filter(r => r.type === 'pv').map(r => [r, repCum(r, m, true).total]).sort((a, b) => b[1] - a[1]).slice(0, 16).map(x => x[0])
 
     const hero = '<section class="hero span-8">' +
       '<div class="hero__top">' + icon('target', 'ic--sm') + '<span>Tiến độ KPI toàn báo · ' + esc(D().period.label) + '</span></div>' +
@@ -580,25 +578,22 @@
       '<a class="card stat" href="' + href('canh-bao') + '" title="Xem cảnh báo"><div class="stat__label">' + icon('alert') + 'Dưới chuẩn</div><div class="stat__value num ' + (under ? 'bad' : 'good') + '">' + under + '<span class="faint" style="font-size:14px;font-weight:600"> / ' + mainUnits().length + '</span></div><div class="stat__sub">đơn vị chậm tiến độ</div></a>' +
       '</div>'
 
-    const attention = '<section class="card span-5"><div class="card__head"><div class="card__title">' + icon('bell') + 'Cần chú ý</div><div class="card__meta">so với % phải đạt</div></div><div class="list" style="margin-top:6px">' +
-      (al.length ? al.map(a => unitRow(a.u, m)).join('') : '<div class="empty">' + icon('check') + '<div>Tất cả đơn vị đang đúng tiến độ</div></div>') +
-      '</div>' + (al.length ? '<a class="card__more" href="' + href('canh-bao') + '" title="Xem tất cả cảnh báo">Xem tất cả ' + icon('chevRight', 'ic--sm') + '</a>' : '') + '</section>'
-
-    const rankCard = '<section class="card span-7"><div class="card__head"><div class="card__title">' + icon('trophy') + 'Xếp hạng chuyên mục</div><div class="card__meta">% so với KPI năm</div></div>' +
+    const rankCard = '<section class="card span-6"><div class="card__head"><div class="card__title">' + icon('trophy') + 'Xếp hạng chuyên mục & văn phòng</div><div class="card__meta">% so với KPI năm</div></div>' +
       unitPodium(ranked.map(x => x.u), m) +
-      '<div class="list list--2 list--top">' + ranked.slice(3).map((x, i) => unitRow(x.u, m, { rank: i + 4 })).join('') + '</div></section>'
+      '<div class="list list--top list--compact">' + ranked.slice(3).map((x, i) => unitRow(x.u, m, { rank: i + 4 })).join('') + '</div></section>'
 
-    const trend = '<section class="card span-8"><div class="card__head"><div class="card__title">' + icon('up') + 'Diễn biến 12 tháng</div><div class="card__meta">Toàn báo</div></div><div class="card__body">' + areaChart(all.monthly, all.kpiM, m) + '</div></section>'
-
-    const vpCard = '<section class="card span-4"><div class="card__head"><div class="card__title">' + icon('building') + 'Văn phòng & TT số</div></div><div class="list" style="margin-top:6px">' +
-      vps().map(u => unitRow(u, m)).join('') + (md ? unitRow(md, m) : '') + '</div></section>'
-
-    const pvCard = '<section class="card span-12"><div class="card__head"><div class="card__title">' + icon('trophy') + 'Top phóng viên</div><div class="card__meta">lũy kế pageview</div></div>' + repPodium(topPV, m) + '<div class="list list--2 list--top">' +
+    const pvCard = '<section class="card span-6"><div class="card__head"><div class="card__title">' + icon('users') + 'Top phóng viên</div><div class="card__meta">lũy kế pageview</div></div>' + repPodium(topPV, m) + '<div class="list list--top list--compact">' +
       topPV.slice(3).map((r, i) => repRow(r, m, i + 4, { showUnit: true })).join('') + '</div><a class="card__more" href="' + href('tong-quan-pv') + '" title="Tất cả phóng viên">Tất cả phóng viên ' + icon('chevRight', 'ic--sm') + '</a></section>'
+
+    const trend = '<section class="card span-12"><div class="card__head"><div class="card__title">' + icon('up') + 'Diễn biến 12 tháng</div><div class="card__meta">Toàn báo</div></div><div class="card__body">' + areaChart(all.monthly, all.kpiM, m, { wide: true }) + '</div></section>'
+
+    const alertList = alerts(m)
+    const alertSec = '<section class="span-12"><div class="sec__head"><div class="card__title">' + icon('bell') + 'Cảnh báo</div><span class="tag tag--bad">' + alertList.length + ' đơn vị</span>' + (alertList.length ? '<a class="sec__more" href="' + href('canh-bao') + '" title="Xem tất cả cảnh báo">Xem tất cả ' + icon('chevRight', 'ic--sm') + '</a>' : '') + '</div>' +
+      (alertList.length ? '<div class="cards">' + alertList.slice(0, 6).map(a => unitCard(a.u, m, { alert: true, streak: a.streak })).join('') + '</div>' : '<div class="card"><div class="empty">' + icon('check') + '<div>Tất cả đơn vị đang đúng tiến độ</div></div></div>') + '</section>'
 
     return monthChips() +
       '<div class="head"><h1 class="head__title">Tất cả chuyên mục</h1><div class="head__sub">' + cms().length + ' chuyên mục · ' + vps().length + ' văn phòng · cập nhật ' + esc(dateTxt(D().updatedAt)) + '</div></div>' +
-      '<div class="grid grid--dash">' + hero + stats + attention + rankCard + trend + vpCard + pvCard + '</div>'
+      '<div class="grid grid--dash">' + hero + stats + rankCard + pvCard + trend + alertSec + '</div>'
   }
 
   function viewRepsHome() {
@@ -1192,7 +1187,7 @@
   let lastW = window.innerWidth
   window.addEventListener('resize', () => {
     const w = window.innerWidth
-    if ((w < 640) !== (lastW < 640) && S.data) render()
+    if (((w < 640) !== (lastW < 640) || (w < 1024) !== (lastW < 1024)) && S.data) render()
     lastW = w
   })
 

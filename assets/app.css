@@ -654,6 +654,11 @@ a.row:hover { background: #fafcfd; }
 .podium__col--3 .podium__block { height: 52px; background: linear-gradient(180deg, #fed7aa, #f0a868 60%, #d08544); }
 .podium__col:hover .podium__name { color: var(--primary); }
 .list--top { border-top: 1px solid var(--line); }
+.list--compact .row { padding-top: 9px; padding-bottom: 9px; }
+.list--compact .bar { margin-top: 5px; }
+.list--compact .row__sub { margin-top: 1px; }
+.sec__head { display: flex; align-items: center; gap: 10px; margin: 6px 2px 12px; }
+.sec__more { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 13.5px; font-weight: 600; color: var(--primary); }
 .empty { padding: 28px 16px; text-align: center; color: var(--text-3); font-size: 14px; }
 .empty .ic { width: 32px; height: 32px; margin-bottom: 8px; color: var(--line); }
 
