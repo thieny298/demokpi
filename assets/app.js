@@ -1,8 +1,8 @@
 (function () {
   const DATA_DIR = 'data/'
+  const SHOW_SAVE = false
   const DRAFT_PREFIX = 'kpi-draft-v2-'
   const UI_KEY = 'kpi-ui-v1'
-  const GH_KEY = 'kpi-gh-v1'
   const GH_TOKEN_KEY = 'kpi-gh-token'
 
   const LOGO = '<svg class="logo" viewBox="0 0 153 34" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M135.421 3.3456C142.526 3.3456 145.01 5.72006 145.973 6.49271V3.3456H153.001V31.9334H146.108V19.6653C146.108 18.497 145.01 15.2933 142.43 15.2556V31.9334H135.421V3.3456ZM126.891 25.4884H134.035V31.9899H120.286V3.3456H134.035V9.84711H126.891V14.6903H132.995V20.1553H126.891V25.4884ZM112.642 3.3456H119.285V31.9334H112.642V3.3456ZM93.7914 3.3456C100.896 3.3456 103.38 5.72006 104.343 6.49271V3.3456H111.391V31.9334H104.497V19.6653C104.497 18.497 103.4 15.2933 100.819 15.2556V31.9334H93.8106V3.3456H93.7914ZM82.2383 3.3456H88.862V31.9334H82.219V19.1942H78.7339V31.9334H72.0908V3.3456H78.7339V13.8611H82.219L82.2383 3.3456ZM52.9705 3.3456C60.0756 3.3456 62.5595 5.72006 63.5223 6.49271V3.3456H70.5697V31.9334H63.6763V19.6653C63.6763 18.497 62.5788 15.2933 59.9986 15.2556V31.9334H52.9897V3.3456H52.9705ZM34.1775 31.9899H41.3019V28.4848H44.7678V31.9711H51.8922V3.3456C38.3559 3.36444 34.1967 13.0131 34.1775 19.5523V31.9899ZM44.7871 13.6538V22.5486H41.3404V20.2307C41.3019 18.0824 42.8615 13.6538 44.7871 13.6538ZM26.514 3.3456H33.157V31.9334H26.514V19.1942H23.0673V31.9334H16.4243V3.3456H23.0673V13.8611H26.5525V3.3456H26.514ZM0.519531 3.3456H15.4808V8.90486H11.3987V31.9146H4.60162V8.92371H0.519531V3.3456ZM125.582 2.12067L127.083 0.650767C127.276 0.462318 127.661 0.462318 127.854 0.650767L129.356 2.12067C129.548 2.30912 129.721 2.47873 129.356 2.87447C128.99 3.23253 128.797 3.06292 128.585 2.87447L127.449 1.76262L126.313 2.87447C126.121 3.06292 125.947 3.23253 125.543 2.87447C125.177 2.49757 125.389 2.30912 125.582 2.12067Z" fill="#0098D1"/></svg>'
@@ -45,7 +45,10 @@
     video: '<path d="m16 13 5.22 3.48a.5.5 0 0 0 .78-.42V7.87a.5.5 0 0 0-.75-.43L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
     pen: '<path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86Z"/>',
     news: '<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/>',
-    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    move: '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    edit: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.38 2.62a1 1 0 0 1 3 3L12.36 14.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86Z"/>'
   }
 
   function icon(name, cls) {
@@ -79,6 +82,9 @@
     dirty: false,
     m: 0,
     year: null,
+    cmpYear: null,
+    cmpData: null,
+    modal: null,
     available: [],
     cache: {},
     route: { name: 'home' },
@@ -187,14 +193,21 @@
     return { bai: x[0] || 0, pvb: x[1] || 0, video: x[2] || 0, total: (x[1] || 0) + (x[2] || 0) }
   }
   function members(r) { return D().reporters.filter(x => x.leader === r.id) }
+  function active(r) { return !r.movedTo }
+  function chain(r) {
+    const out = [r]
+    let p = r.movedFrom ? rep(r.movedFrom.id) : null
+    while (p && !out.includes(p)) { out.push(p); p = p.movedFrom ? rep(p.movedFrom.id) : null }
+    return out
+  }
   function repCum(r, m, withGroup) {
-    const list = withGroup ? [r].concat(members(r)) : [r]
+    const list = chain(r).concat(withGroup ? members(r) : [])
     const o = { bai: 0, pvb: 0, video: 0, total: 0 }
     list.forEach(x => { for (let i = 0; i <= m; i++) { const v = rm(x, i); o.bai += v.bai; o.pvb += v.pvb; o.video += v.video; o.total += v.total } })
     return o
   }
   function repMonthTotal(r, i, withGroup) {
-    const list = withGroup ? [r].concat(members(r)) : [r]
+    const list = chain(r).concat(withGroup ? members(r) : [])
     return list.reduce((s, x) => s + rm(x, i).total, 0)
   }
   function unitPVMonth(u, i) { return D().reporters.filter(r => r.unit === u.id).reduce((s, r) => s + rm(r, i).total, 0) }
@@ -210,6 +223,30 @@
       return { u, s, streak: misses.length >= 2 ? misses.reverse() : [] }
     }).filter(a => a.s.st !== 'good' || a.streak.length).sort((a, b) => (a.s.p / a.s.exp) - (b.s.p / b.s.exp))
   }
+  function cmpYears() { return S.available.filter(y => y !== S.year).sort((a, b) => b - a) }
+  function C() { return S.cmpData }
+  function cmpUnit(id) { return C() ? C().units.find(u => u.id === id) : null }
+  function cmpSum(list, m) {
+    const cum = list.reduce((s, u) => s + sumTo(u.monthly, m), 0)
+    const kpi = list.reduce((s, u) => s + (u.kpi || 0), 0)
+    const monthly = Array.from({ length: 12 }, (_, i) => list.reduce((s, u) => s + (u.monthly[i] || 0), 0))
+    return { cum, kpi, p: pct(cum, kpi), monthly }
+  }
+  function cmpAll(m) { return C() ? cmpSum(C().units.filter(u => u.type !== 'media'), m) : null }
+  function cmpRep(r) {
+    if (!C()) return null
+    return C().reporters.find(x => x.id === r.id) || C().reporters.find(x => KpiParser.normName(x.name) === KpiParser.normName(r.name)) || null
+  }
+  function cmpRepTotals(rc) {
+    const list = [rc].concat(C().reporters.filter(x => x.leader === rc.id))
+    return Array.from({ length: 12 }, (_, i) => list.reduce((s, x) => { const v = x.monthly[i]; return s + (v ? (v[1] || 0) + (v[2] || 0) : 0) }, 0))
+  }
+  function deltaTag(cur, prev, suffix) {
+    if (!prev) return ''
+    const d = (cur / prev - 1) * 100
+    return '<span class="tag tag--' + (d >= 0 ? 'good' : 'bad') + ' num">' + (d >= 0 ? '+' : '−') + nf1.format(Math.abs(d)) + '%' + (suffix || '') + '</span>'
+  }
+
   function alertCount() { if (!hasData()) return 0; return mainUnits().filter(u => unitStats(u, S.m).st !== 'good').length }
 
   function ring(p, exp, st, size, opts) {
@@ -258,7 +295,8 @@
     const W = opts.wide && window.innerWidth >= 1024 ? 1180 : chartW(), H = W < 640 ? 240 : opts.wide && W > 640 ? 250 : 230, L = 44, R = 10, T = 12, B = 28
     const iw = W - L - R, ih = H - T - B
     const n = values.length
-    const max = niceMax(Math.max(kpiM || 0, ...values.filter(v => v != null)) * 1.08)
+    const cmp = opts.cmp || null
+    const max = niceMax(Math.max(kpiM || 0, ...values.filter(v => v != null), ...(cmp || []).filter(v => v != null)) * 1.08)
     const x = i => L + (n === 1 ? iw / 2 : i * iw / (n - 1))
     const y = v => T + ih - (v / max) * ih
     const pts = values.map((v, i) => (v != null && i <= m && v > 0) ? [x(i), y(v)] : null)
@@ -267,6 +305,11 @@
     if (valid.length) {
       line = valid.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
       area = line + ' L' + valid[valid.length - 1][0].toFixed(1) + ' ' + (T + ih) + ' L' + valid[0][0].toFixed(1) + ' ' + (T + ih) + ' Z'
+    }
+    let cmpPath = ''
+    if (cmp) {
+      const cp = cmp.map((v, i) => v ? [x(i), y(v)] : null).filter(Boolean)
+      if (cp.length) cmpPath = '<path class="chart__cmp" d="' + cp.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + '"/>' + cp.map(p => '<circle class="chart__cmp-dot" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.5"/>').join('')
     }
     let g = ''
     for (let k = 0; k <= 4; k++) {
@@ -279,12 +322,12 @@
     const dots = pts.map((p, i) => p ? '<circle class="chart__dot" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (i === m ? 5 : 3.5) + '"/>' : '').join('')
     const step = iw / (n - 1 || 1)
     const hits = values.map((v, i) => '<rect class="chart__hit" data-chart="' + id + '" data-i="' + i + '" x="' + (x(i) - step / 2).toFixed(1) + '" y="' + T + '" width="' + step.toFixed(1) + '" height="' + ih + '" rx="6"/>').join('')
-    CHARTS[id] = { values, kpiM, unitLabel: opts.unitLabel || 'lượt xem' }
+    CHARTS[id] = { values, kpiM, cmp, cmpLabel: opts.cmpLabel, unitLabel: opts.unitLabel || 'lượt xem' }
     return '<div class="chart"><div class="chart__readout" id="' + id + '-ro">' + readout(id, m) + '</div>' +
       '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Biểu đồ 12 tháng">' + g + hits +
-      (area ? '<path d="' + area + '" fill="url(#ag-primary)"/>' : '') + kpi +
+      (area ? '<path d="' + area + '" fill="url(#ag-primary)"/>' : '') + kpi + cmpPath +
       (line ? '<path class="chart__line" d="' + line + '"/>' : '') + dots + labels + '</svg>' +
-      '<div class="legend"><span class="legend__item"><span class="legend__sw"></span>Thực tế</span>' + (kpiM ? '<span class="legend__item"><span class="legend__sw legend__sw--kpi"></span>KPI tháng</span>' : '') + '</div></div>'
+      '<div class="legend"><span class="legend__item"><span class="legend__sw"></span>' + esc(D().period.label) + '</span>' + (cmp ? '<span class="legend__item"><span class="legend__sw legend__sw--cmp"></span>' + esc(opts.cmpLabel) + '</span>' : '') + (kpiM ? '<span class="legend__item"><span class="legend__sw legend__sw--kpi"></span>KPI tháng</span>' : '') + '</div></div>'
   }
 
   function columnChart(values, kpiM, m, opts) {
@@ -293,7 +336,7 @@
     const W = chartW(), H = W < 640 ? 230 : 220, L = 44, R = 10, T = 12, B = 28
     const iw = W - L - R, ih = H - T - B
     const n = values.length
-    const max = niceMax(Math.max(kpiM || 0, ...values.map(v => v || 0)) * 1.08)
+    const max = niceMax(Math.max(kpiM || 0, ...values.map(v => v || 0), ...(opts.cmp || []).map(v => v || 0)) * 1.08)
     const slot = iw / n
     const bw = Math.min(30, slot * 0.58)
     const y = v => T + ih - (v / max) * ih
@@ -315,10 +358,16 @@
       bars += '<rect class="chart__hit" data-chart="' + id + '" data-i="' + i + '" x="' + (L + slot * i).toFixed(1) + '" y="' + T + '" width="' + slot.toFixed(1) + '" height="' + ih + '" rx="6"/>'
     })
     const kpi = kpiM ? '<line class="chart__kpi" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(kpiM).toFixed(1) + '" y2="' + y(kpiM).toFixed(1) + '"/>' : ''
-    CHARTS[id] = { values, kpiM, unitLabel: opts.unitLabel || 'lượt xem' }
+    const cmp = opts.cmp || null
+    let cmpPath = ''
+    if (cmp) {
+      const cp = cmp.map((v, i) => v ? [L + slot * i + slot / 2, y(Math.min(v, max))] : null).filter(Boolean)
+      if (cp.length) cmpPath = '<path class="chart__cmp" d="' + cp.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + '"/>' + cp.map(p => '<circle class="chart__cmp-dot" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3"/>').join('')
+    }
+    CHARTS[id] = { values, kpiM, cmp, cmpLabel: opts.cmpLabel, unitLabel: opts.unitLabel || 'lượt xem' }
     return '<div class="chart"><div class="chart__readout" id="' + id + '-ro">' + readout(id, m) + '</div>' +
-      '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Biểu đồ cột 12 tháng">' + g + bars + kpi + '</svg>' +
-      '<div class="legend"><span class="legend__item"><span class="legend__sw"></span>' + (opts.mono ? 'Tổng pageview' : 'Theo tháng') + '</span>' + (kpiM ? '<span class="legend__item"><span class="legend__sw legend__sw--kpi"></span>KPI tháng</span>' : '') + '</div></div>'
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Biểu đồ cột 12 tháng">' + g + bars + kpi + cmpPath + '</svg>' +
+      '<div class="legend"><span class="legend__item"><span class="legend__sw"></span>' + (opts.mono ? 'Tổng pageview' : 'Theo tháng') + '</span>' + (cmp ? '<span class="legend__item"><span class="legend__sw legend__sw--cmp"></span>' + esc(opts.cmpLabel) + '</span>' : '') + (kpiM ? '<span class="legend__item"><span class="legend__sw legend__sw--kpi"></span>KPI tháng</span>' : '') + '</div></div>'
   }
 
   const CHARTS = {}
@@ -327,10 +376,12 @@
     if (!c) return ''
     const v = c.values[i]
     const mo = months()[i]
-    if (!v) return '<span>' + mo.label + '</span><span class="faint">Chưa có dữ liệu</span>'
+    const cv = c.cmp ? c.cmp[i] : null
+    const cmpTxt = c.cmp ? '<span class="chart__ro-cmp">' + esc(c.cmpLabel) + ': <strong class="num">' + (cv ? fmt(cv) : '—') + '</strong></span>' + (v && cv ? deltaTag(v, cv) : '') : ''
+    if (!v) return '<span>' + mo.label + '</span><span class="faint">Chưa có dữ liệu</span>' + cmpTxt
     const diff = c.kpiM ? v - c.kpiM : null
     return '<span>' + mo.label + '</span><strong class="num">' + full(v) + '</strong><span>' + c.unitLabel + '</span>' +
-      (diff != null ? '<span class="tag tag--' + (diff >= 0 ? 'good' : 'bad') + ' num">' + signed(diff) + ' so với KPI</span>' : '')
+      (diff != null ? '<span class="tag tag--' + (diff >= 0 ? 'good' : 'bad') + ' num">' + signed(diff) + ' so với KPI</span>' : '') + cmpTxt
   }
 
   function href(path) { return '#/' + path }
@@ -491,7 +542,9 @@
     const el = $('#draft')
     if (!S.dirty) { el.hidden = true; el.innerHTML = ''; return }
     el.hidden = false
-    el.innerHTML = icon('alert', 'ic--sm') + '<span>Đang xem <strong>bản nháp chưa lưu</strong> trên trình duyệt này.</span><div class="draft__actions"><a class="btn btn--sm" href="' + href('admin') + '" title="Lưu dữ liệu">' + icon('save', 'ic--sm') + 'Lưu</a><button class="btn btn--sm btn--ghost" data-act="draft-discard">Huỷ nháp</button></div>'
+    el.innerHTML = icon('alert', 'ic--sm') + '<span>Đang xem <strong>bản nháp chưa lưu</strong> trên trình duyệt này.</span><div class="draft__actions">' +
+      (SHOW_SAVE ? '<a class="btn btn--sm" href="' + href('admin') + '" title="Lưu dữ liệu">' + icon('save', 'ic--sm') + 'Lưu</a>' : (isAdmin() ? '<button class="btn btn--sm" data-act="download">' + icon('download', 'ic--sm') + 'Tải file dữ liệu</button>' : '')) +
+      '<button class="btn btn--sm btn--ghost" data-act="draft-discard">Huỷ nháp</button></div>'
   }
 
   function monthChips() {
@@ -537,8 +590,16 @@
       (opts.rank ? '<span class="row__rank row__rank--' + opts.rank + '">' + opts.rank + '</span>' : '<span class="row__icon row__icon--' + s.st + '">' + icon(icn) + '</span>') +
       '<div class="row__main"><div class="row__title"><span class="t">' + esc(uName(u)) + '</span></div>' +
       bar(s.p, s.exp, s.st) +
-      '<div class="row__sub"><span class="num">' + fmt(s.cum) + ' / ' + fmt(s.kpi) + '</span><span class="num ' + (s.gap >= 0 ? 'good' : 'bad') + '">' + signed(s.gap) + '</span></div></div>' +
+      '<div class="row__sub"><span class="num">' + fmt(s.cum) + ' / ' + fmt(s.kpi) + '</span><span class="num ' + (s.gap >= 0 ? 'good' : 'bad') + '">' + signed(s.gap) + '</span>' + cmpBadge(u, m) + '</div></div>' +
       icon('chevRight', 'row__chev') + '</a>'
+  }
+
+  function cmpBadge(u, m) {
+    const cu = cmpUnit(u.id)
+    if (!cu || !cu.kpi) return ''
+    const cp = pct(sumTo(cu.monthly, m), cu.kpi)
+    const cur = unitStats(u, m).p
+    return '<span class="cmpb" title="Cùng kỳ KPI ' + S.cmpYear + '">' + S.cmpYear + ': ' + pctTxt(cp) + ' <b class="' + (cur >= cp ? 'good' : 'bad') + '">' + (cur >= cp ? '▲' : '▼') + '</b></span>'
   }
 
   function uName(u) { return u.type === 'vp' ? 'VP ' + u.name : u.type === 'media' ? 'TT số · Media' : u.name }
@@ -562,19 +623,24 @@
     const growth = all.prev ? (all.cum / (all.prev * all.exp / 100) - 1) * 100 : null
     const under = mainUnits().filter(u => unitStats(u, m).st !== 'good').length
     const ranked = mainUnits().map(u => ({ u, s: unitStats(u, m) })).sort((x, y) => y.s.p - x.s.p)
-    const topPV = D().reporters.filter(r => r.type === 'pv').map(r => [r, repCum(r, m, true).total]).sort((a, b) => b[1] - a[1]).slice(0, 16).map(x => x[0])
+    const topPV = D().reporters.filter(r => r.type === 'pv' && active(r)).map(r => [r, repCum(r, m, true).total]).sort((a, b) => b[1] - a[1]).slice(0, 16).map(x => x[0])
 
+    const cc = cmpAll(m)
+    const cy = S.cmpYear
+    const cmpSel = cmpYears().length ? '<label class="hero__sel"><span>So sánh với</span><select class="select select--glass" data-in="cmp"><option value="none">Không so sánh</option>' + cmpYears().map(y => '<option value="' + y + '"' + (y === cy ? ' selected' : '') + '>KPI ' + y + '</option>').join('') + '</select></label>' : ''
+    const vs = cc ? '<div class="hero__vs"><div class="hero__label">Cùng kỳ KPI ' + cy + '</div><div class="hero__vs-value num">' + fmt(cc.cum) + ' <small>/ ' + fmt(cc.kpi) + '</small></div><div class="hero__pills"><span class="hero__pill">Đạt ' + pctTxt(cc.p) + '</span><span class="hero__pill hero__pill--' + (all.cum >= cc.cum ? 'good' : 'bad') + '">' + icon(all.cum >= cc.cum ? 'up' : 'down', 'ic--sm') + (all.cum >= cc.cum ? '+' : '−') + nf1.format(Math.abs((all.cum / cc.cum - 1) * 100)) + '%</span></div></div>' : ''
     const hero = '<section class="hero span-8">' +
-      '<div class="hero__top">' + icon('target', 'ic--sm') + '<span>Tiến độ KPI toàn báo · ' + esc(D().period.label) + '</span></div>' +
+      '<div class="hero__top">' + icon('target', 'ic--sm') + '<span>Tiến độ KPI toàn báo · ' + esc(D().period.label) + '</span>' + cmpSel + '</div>' +
       '<div class="hero__main"><div class="hero__ring">' + ring(all.p, all.exp, all.st, 116, { light: true, label: 'hoàn thành' }) + '</div>' +
       '<div class="hero__info"><div class="hero__label">Lũy kế đến hết ' + esc(lm.label) + '</div>' +
       '<div class="hero__value num">' + fmt(all.cum) + ' <small>/ ' + fmt(all.kpi) + '</small></div>' +
-      '<div class="hero__pills"><span class="hero__pill hero__pill--' + all.st + '">' + icon(all.gap >= 0 ? 'up' : 'down', 'ic--sm') + signed(all.gap) + '</span><span class="hero__pill">Phải đạt ' + pctTxt(all.exp) + '</span></div></div></div>' +
+      '<div class="hero__pills"><span class="hero__pill hero__pill--' + all.st + '">' + icon(all.gap >= 0 ? 'up' : 'down', 'ic--sm') + signed(all.gap) + '</span><span class="hero__pill">Phải đạt ' + pctTxt(all.exp) + '</span></div></div>' + vs + '</div>' +
       '<div class="hero__foot"><span>' + esc(statusText[all.st]) + '</span><span>' + daysUpTo(m) + '/' + totalDays() + ' ngày</span></div></section>'
 
     const stats = '<div class="stats stats--3 stats--side span-4">' +
       '<div class="card stat"><div class="stat__label">' + icon('eye') + 'Lượt xem ' + esc(lm.label) + '</div><div class="stat__value num">' + fmt(all.month) + '</div>' + bar(pct(all.month, all.kpiM), null, all.month >= all.kpiM ? 'good' : all.month >= all.kpiM * .85 ? 'warn' : 'bad') + '<div class="stat__sub">KPI tháng ' + fmt(all.kpiM) + '</div></div>' +
-      '<div class="card stat"><div class="stat__label">' + icon(growth >= 0 ? 'up' : 'down') + 'So với 2025</div><div class="stat__value num ' + (growth >= 0 ? 'good' : 'bad') + '">' + (growth == null ? '—' : (growth >= 0 ? '+' : '') + nf1.format(growth) + '%') + '</div><div class="stat__sub">Quy đổi cùng tiến độ</div></div>' +
+      (cc ? '<div class="card stat"><div class="stat__label">' + icon(all.cum >= cc.cum ? 'up' : 'down') + 'So với cùng kỳ ' + cy + '</div><div class="stat__value num ' + (all.cum >= cc.cum ? 'good' : 'bad') + '">' + (all.cum >= cc.cum ? '+' : '−') + nf1.format(Math.abs((all.cum / cc.cum - 1) * 100)) + '%</div><div class="stat__sub">' + fmt(all.cum) + ' so với ' + fmt(cc.cum) + '</div></div>' :
+      '<div class="card stat"><div class="stat__label">' + icon(growth >= 0 ? 'up' : 'down') + 'So với năm trước</div><div class="stat__value num ' + (growth >= 0 ? 'good' : 'bad') + '">' + (growth == null ? '—' : (growth >= 0 ? '+' : '') + nf1.format(growth) + '%') + '</div><div class="stat__sub">Quy đổi cùng tiến độ</div></div>') +
       '<a class="card stat" href="' + href('canh-bao') + '" title="Xem cảnh báo"><div class="stat__label">' + icon('alert') + 'Dưới chuẩn</div><div class="stat__value num ' + (under ? 'bad' : 'good') + '">' + under + '<span class="faint" style="font-size:14px;font-weight:600"> / ' + mainUnits().length + '</span></div><div class="stat__sub">đơn vị chậm tiến độ</div></a>' +
       '</div>'
 
@@ -585,7 +651,7 @@
     const pvCard = '<section class="card span-6"><div class="card__head"><div class="card__title">' + icon('users') + 'Top phóng viên</div><div class="card__meta">lũy kế pageview</div></div>' + repPodium(topPV, m) + '<div class="list list--top list--compact">' +
       topPV.slice(3).map((r, i) => repRow(r, m, i + 4, { showUnit: true })).join('') + '</div><a class="card__more" href="' + href('tong-quan-pv') + '" title="Tất cả phóng viên">Tất cả phóng viên ' + icon('chevRight', 'ic--sm') + '</a></section>'
 
-    const trend = '<section class="card span-12"><div class="card__head"><div class="card__title">' + icon('up') + 'Diễn biến 12 tháng</div><div class="card__meta">Toàn báo</div></div><div class="card__body">' + areaChart(all.monthly, all.kpiM, m, { wide: true }) + '</div></section>'
+    const trend = '<section class="card span-12"><div class="card__head"><div class="card__title">' + icon('up') + 'Diễn biến 12 tháng</div><div class="card__meta">Toàn báo</div></div><div class="card__body">' + areaChart(all.monthly, all.kpiM, m, { wide: true, cmp: cc ? cc.monthly : null, cmpLabel: 'KPI ' + cy }) + '</div></section>'
 
     const alertList = alerts(m)
     const alertSec = '<section class="span-12"><div class="sec__head"><div class="card__title">' + icon('bell') + 'Cảnh báo</div><span class="tag tag--bad">' + alertList.length + ' đơn vị</span>' + (alertList.length ? '<a class="sec__more" href="' + href('canh-bao') + '" title="Xem tất cả cảnh báo">Xem tất cả ' + icon('chevRight', 'ic--sm') + '</a>' : '') + '</div>' +
@@ -599,8 +665,8 @@
   function viewRepsHome() {
     const m = S.m
     const days = daysUpTo(m)
-    const pvs = D().reporters.filter(r => r.type === 'pv')
-    const ctv = D().reporters.length - pvs.length
+    const pvs = D().reporters.filter(r => r.type === 'pv' && active(r))
+    const ctv = D().reporters.filter(r => r.type === 'ctv' && active(r)).length
     const tot = { bai: 0, pvb: 0, video: 0, total: 0 }
     D().reporters.forEach(r => { const c = repCum(r, m, false); tot.bai += c.bai; tot.pvb += c.pvb; tot.video += c.video; tot.total += c.total })
     const rows = pvs.map(r => ({ r, c: repCum(r, m, true), own: repCum(r, m, false) }))
@@ -649,6 +715,13 @@
       '<div class="cards">' + list.map(u => unitCard(u, m)).join('') + '</div>'
   }
 
+  function moveTags(r, linked) {
+    let out = ''
+    if (r.movedTo) { const n = rep(r.movedTo.id); const u = n ? unit(n.unit) : null; out += '<span class="tag tag--warn">Chuyển sang ' + esc(u ? uName(u) : '') + ' từ ' + months()[r.movedTo.month].short + '</span>' + (linked && n ? link('pv/' + n.id, 'Hồ sơ mới', 'Xem hồ sơ mới') : '') }
+    if (r.movedFrom) { const o = rep(r.movedFrom.id); const u = o ? unit(o.unit) : null; out += '<span class="tag tag--primary">Từ ' + esc(u ? uName(u) : '') + ' · ' + months()[r.movedFrom.month].short + '</span>' }
+    return out
+  }
+
   function repRow(r, m, rank, opts) {
     opts = opts || {}
     const g = members(r).length
@@ -660,7 +733,7 @@
     return '<a class="row" href="' + href('pv/' + r.id) + '" title="' + esc(r.name) + '">' +
       (rank ? '<span class="row__rank row__rank--' + rank + '">' + rank + '</span>' : '') +
       '<div class="sidebar__avatar">' + esc(initials(r.name)) + '</div>' +
-      '<div class="row__main"><div class="row__title"><span class="t">' + esc(r.name) + '</span>' + (r.type === 'ctv' ? '<span class="tag">CTV</span>' : '') + (g ? '<span class="tag tag--primary">Nhóm · ' + g + '</span>' : '') + '</div>' +
+      '<div class="row__main"><div class="row__title"><span class="t">' + esc(r.name) + '</span>' + (r.type === 'ctv' ? '<span class="tag">CTV</span>' : '') + (g ? '<span class="tag tag--primary">Nhóm · ' + g + '</span>' : '') + '</div>' + (r.movedTo || r.movedFrom ? '<div class="row__sub">' + moveTags(r) + '</div>' : '') +
       '<div class="row__sub">' + (opts.showUnit ? '<span>' + esc(u ? uName(u) : '') + '</span>' : '') + '<span class="num">' + full(c.bai) + ' bài</span><span class="num">' + nf1.format(c.bai / days) + ' bài/ngày</span></div>' +
       (k != null ? bar(k, exp, status(k, exp)) : '') + '</div>' +
       (opts.byBai ? '<div class="row__end"><div class="row__value num">' + full(repCum(r, m, false).bai) + '</div><div class="faint" style="font-size:11.5px">bài</div></div></a>' : '<div class="row__end"><div class="row__value num">' + fmt(c.total) + '</div><div class="faint" style="font-size:11.5px">pageview</div></div></a>')
@@ -673,8 +746,8 @@
     const s = unitStats(u, m)
     const isMedia = u.type === 'media'
     const unitLabel = isMedia ? 'playtime' : 'lượt xem'
-    const reps = D().reporters.filter(r => r.unit === id && r.type === 'pv').sort((x, y) => repCum(y, m, true).total - repCum(x, m, true).total)
-    const ctvFree = D().reporters.filter(r => r.unit === id && r.type === 'ctv' && !r.leader)
+    const reps = D().reporters.filter(r => r.unit === id && r.type === 'pv' && active(r)).sort((x, y) => repCum(y, m, true).total - repCum(x, m, true).total)
+    const ctvFree = D().reporters.filter(r => r.unit === id && ((r.type === 'ctv' && !r.leader) || !active(r)))
     const pvCum = isMedia ? 0 : unitPVCum(u, m)
     const share = s.cum ? pvCum / s.cum * 100 : 0
     const typeLabel = u.type === 'vp' ? 'Văn phòng' : isMedia ? 'TT số · Playtime' : 'Chuyên mục'
@@ -691,10 +764,10 @@
       '<div style="min-width:0;flex:1"><div class="stat__label">' + icon(isMedia ? 'play' : 'eye') + 'Lũy kế ' + unitLabel + '</div><div class="stat__value num">' + fmt(s.cum) + '</div><div class="stat__sub num">KPI năm ' + fmt(s.kpi) + ' · tháng ' + fmt(s.kpiM) + '</div>' +
       '<div class="pills" style="margin-top:8px"><span class="tag tag--' + s.st + ' num">' + signed(s.gap) + '</span><span class="tag">Phải đạt ' + pctTxt(s.exp) + '</span></div></div></div>' +
       '<div class="stats" style="padding:0 16px 16px;grid-template-columns:1fr 1fr">' +
-      '<div><div class="stat__label">' + icon('calendar') + 'Năm trước</div><div class="row__value num">' + fmt(u.prev) + '</div></div>' +
+      (cmpUnit(u.id) ? '<div><div class="stat__label">' + icon('calendar') + 'Cùng kỳ ' + S.cmpYear + '</div><div class="row__value num">' + fmt(sumTo(cmpUnit(u.id).monthly, m)) + ' ' + deltaTag(s.cum, sumTo(cmpUnit(u.id).monthly, m)) + '</div></div>' : '<div><div class="stat__label">' + icon('calendar') + 'Năm trước</div><div class="row__value num">' + fmt(u.prev) + '</div></div>') +
       (isMedia ? '<div><div class="stat__label">' + icon('clock') + 'Đơn vị</div><div class="row__value">Playtime</div></div>' : '<div><div class="stat__label">' + icon('users') + 'Đóng góp PV</div><div class="row__value num">' + pctTxt(share) + ' <span class="faint" style="font-size:12px">' + fmt(pvCum) + '</span></div></div>') +
       '</div></section>' +
-      '<section class="card span-7"><div class="card__head"><div class="card__title">' + icon('up') + 'Theo tháng</div><div class="card__meta">màu theo KPI tháng</div></div><div class="card__body">' + columnChart(u.monthly, s.kpiM, m, { unitLabel }) + '</div></section>' +
+      '<section class="card span-7"><div class="card__head"><div class="card__title">' + icon('up') + 'Theo tháng</div><div class="card__meta">màu theo KPI tháng</div></div><div class="card__body">' + columnChart(u.monthly, s.kpiM, m, { unitLabel, cmp: cmpUnit(u.id) ? cmpUnit(u.id).monthly : null, cmpLabel: 'KPI ' + S.cmpYear }) + '</div></section>' +
       (isMedia ? '' : '<section class="card span-7"><div class="card__head"><div class="card__title">' + icon('users') + 'Phóng viên</div><div class="card__meta">' + reps.length + ' PV' + (ctvFree.length ? ' · ' + ctvFree.length + ' CTV' : '') + '</div></div><div class="list" style="margin-top:6px">' +
         (reps.length ? reps.map((r, i) => repRow(r, m, i + 1)).join('') : '<div class="empty">Chưa có phóng viên</div>') +
         ctvFree.map(r => repRow(r, m)).join('') + '</div></section>') +
@@ -717,7 +790,7 @@
   function repsList() {
     const m = S.m
     const q = KpiParser.normName(S.pv.q)
-    let list = D().reporters.filter(r => (S.pv.ctv || r.type === 'pv') && (!S.pv.unit || r.unit === S.pv.unit) && (!q || KpiParser.normName(r.name).includes(q)))
+    let list = D().reporters.filter(r => active(r) && (S.pv.ctv || r.type === 'pv') && (!S.pv.unit || r.unit === S.pv.unit) && (!q || KpiParser.normName(r.name).includes(q)))
     const key = r => {
       const c = repCum(r, m, true)
       if (S.pv.sort === 'bai') return c.bai
@@ -747,6 +820,9 @@
     const kp = r.kpi ? pct(grp.total, r.kpi) : null
     const kst = kp != null ? status(kp, exp) : null
     const totals = months().map((_, i) => repMonthTotal(r, i, true))
+    const rc = cmpRep(r)
+    const rcTotals = rc ? cmpRepTotals(rc) : null
+    const rcCum = rcTotals ? sumTo(rcTotals, m) : 0
     const monthRows = months().map((mo, i) => {
       if (i > m) return ''
       const v = rm(r, i)
@@ -757,16 +833,16 @@
       '<div class="head head__row"><div class="head__avatar">' + esc(initials(r.name)) + '</div><div style="min-width:0"><h1 class="head__title">' + esc(r.name) + '</h1><div class="head__sub">' + link('don-vi/' + u.id, u.name, esc(u.type === 'vp' ? 'VP ' + u.name : u.name)) +
       '<span class="tag ' + (r.type === 'pv' ? 'tag--primary' : '') + '">' + (r.type === 'pv' ? 'Phóng viên' : 'CTV') + '</span>' +
       (leader ? '<span>Nhóm của ' + link('pv/' + leader.id, leader.name, esc(leader.name)) + '</span>' : '') +
-      ((r.codes || []).length ? '<span class="faint">' + esc(r.codes.join(', ')) + '</span>' : '') + '</div></div></div>' +
+      ((r.codes || []).length ? '<span class="faint">' + esc(r.codes.join(', ')) + '</span>' : '') + moveTags(r, true) + '</div></div></div>' +
       '<div class="grid grid--dash">' +
       '<div class="stats stats--4 span-12">' +
-      '<div class="card stat"><div class="stat__label">' + icon('eye') + (mem.length ? 'Tổng PV nhóm' : 'Tổng pageview') + '</div><div class="stat__value num">' + fmt(grp.total) + '</div><div class="stat__sub">lũy kế ' + (m + 1) + ' tháng</div></div>' +
+      '<div class="card stat"><div class="stat__label">' + icon('eye') + (mem.length ? 'Tổng PV nhóm' : 'Tổng pageview') + '</div><div class="stat__value num">' + fmt(grp.total) + '</div><div class="stat__sub">' + (rc ? 'Cùng kỳ ' + S.cmpYear + ': ' + fmt(rcCum) + ' ' + deltaTag(grp.total, rcCum) : 'lũy kế ' + (m + 1) + ' tháng') + '</div></div>' +
       '<div class="card stat"><div class="stat__label">' + icon('file') + 'Số bài</div><div class="stat__value num">' + full(own.bai) + '</div><div class="stat__sub">' + (mem.length ? 'cả nhóm ' + full(grp.bai) : 'bài đã xuất bản') + '</div></div>' +
       '<div class="card stat"><div class="stat__label">' + icon('pen') + 'Bài TB/ngày</div><div class="stat__value num ' + (rate >= avgRate ? 'good' : 'bad') + '">' + nf2.format(rate) + '</div><div class="stat__sub">TB đơn vị ' + nf2.format(avgRate) + ' · ' + days + ' ngày</div></div>' +
       '<div class="card stat"><div class="stat__label">' + icon('video') + 'Video plays</div><div class="stat__value num">' + fmt(own.video) + '</div><div class="stat__sub">PV bài viết ' + fmt(own.pvb) + '</div></div>' +
       '</div>' +
       (r.kpi ? '<section class="card span-12"><div class="card__body" style="display:flex;gap:16px;align-items:center">' + ring(kp, exp, kst, 96, { label: 'KPI' }) + '<div style="flex:1;min-width:0"><div class="stat__label">' + icon('target') + 'KPI năm ' + fmt(r.kpi) + '</div>' + bar(kp, exp, kst, { lg: true }) + '<div class="row__sub num"><span>Phải đạt ' + fmt(r.kpi * exp / 100) + '</span><span class="' + (grp.total - r.kpi * exp / 100 >= 0 ? 'good' : 'bad') + '">' + signed(grp.total - r.kpi * exp / 100) + '</span></div></div></div></section>' : '') +
-      '<section class="card span-7"><div class="card__head"><div class="card__title">' + icon('up') + 'Pageview theo tháng</div></div><div class="card__body">' + columnChart(totals, r.kpi ? r.kpi / 12 : 0, m, { mono: !r.kpi, unitLabel: 'pageview' }) + '</div></section>' +
+      '<section class="card span-7"><div class="card__head"><div class="card__title">' + icon('up') + 'Pageview theo tháng</div></div><div class="card__body">' + columnChart(totals, r.kpi ? r.kpi / 12 : 0, m, { mono: !r.kpi, unitLabel: 'pageview', cmp: rcTotals, cmpLabel: 'KPI ' + S.cmpYear }) + '</div></section>' +
       '<section class="card span-5"><div class="card__head"><div class="card__title">' + icon('calendar') + 'Chi tiết tháng</div></div><div class="table-wrap" style="margin-top:10px"><table class="table"><thead><tr><th>Tháng</th><th class="r">Bài</th><th class="r">PV bài</th><th class="r">Video</th><th class="r">Tổng</th>' + (r.kpi ? '<th class="r">Dư/thiếu</th>' : '') + '</tr></thead><tbody>' + (monthRows || '<tr><td colspan="6" class="empty">Chưa có dữ liệu</td></tr>') + '</tbody></table></div></section>' +
       (mem.length ? '<section class="card span-12"><div class="card__head"><div class="card__title">' + icon('users') + 'Nhóm CTV</div><div class="card__meta">' + mem.length + ' người · tổng nhóm ' + fmt(grp.total) + '</div></div><div class="list" style="margin-top:6px">' + mem.slice().sort((a, b) => repCum(b, m).total - repCum(a, m).total).map(x => repRow(x, m)).join('') + '</div></section>' : '') +
       '</div>'
@@ -784,7 +860,7 @@
   }
 
   function ghCfg() {
-    try { return Object.assign({ repo: 'thieny298/demokpi', branch: 'main' }, JSON.parse(localStorage.getItem(GH_KEY) || '{}'), { path: 'data/data.js' }) } catch (e) { return { repo: 'thieny298/demokpi', branch: 'main', path: 'data/data.js' } }
+    return { repo: 'thieny298/demokpi', branch: 'main' }
   }
   function ghToken() { try { return sessionStorage.getItem(GH_TOKEN_KEY) || '' } catch (e) { return '' } }
 
@@ -799,7 +875,6 @@
     if (a.month == null) a.month = Math.min(11, lastDataMonth())
     a.year = a.yearTouched ? a.year : S.year
     const vf = D().period.videoField
-    const cfg = ghCfg()
     const tok = ghToken()
     const report = a.report
     let preview = ''
@@ -841,7 +916,6 @@
 
     const saveCard = '<section class="card"><div class="card__head"><span class="step__num">4</span><div class="card__title">Lưu dữ liệu</div><div class="card__meta">' + (S.dirty ? '<span class="warn">Có thay đổi chưa lưu</span>' : 'Đã đồng bộ') + '</div></div><div class="card__body"><div class="fields">' +
       '<div class="note">Dashboard đọc file <code>data/data.js</code> trong repo. Lưu lên GitHub để mọi người thấy số mới (GitHub Pages cập nhật sau khoảng 1 phút).</div>' +
-      '<div class="fields fields--2"><label class="field"><span class="field__label">Repo</span><input class="input" value="' + esc(cfg.repo) + '" data-gh="repo"></label><label class="field"><span class="field__label">Nhánh</span><input class="input" value="' + esc(cfg.branch) + '" data-gh="branch"></label></div>' +
       '<label class="field"><span class="field__label">GitHub token (fine-grained, quyền Contents: Read & write) · chỉ lưu trong phiên này</span><input class="input" type="password" autocomplete="off" placeholder="github_pat_…" value="' + esc(tok) + '" data-gh="token"></label>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn--primary" data-act="gh-save"' + (a.busy ? ' disabled' : '') + '>' + icon('github', 'ic--sm') + (a.busy ? 'Đang lưu…' : 'Lưu lên GitHub') + '</button><button class="btn" data-act="download">' + icon('download', 'ic--sm') + 'Tải data.js</button>' + (S.dirty ? '<button class="btn btn--ghost" data-act="draft-discard">' + icon('trash', 'ic--sm') + 'Huỷ nháp</button>' : '') + '</div>' +
       '<div class="note faint">Lịch sử: ' + (D().log || []).slice(-4).reverse().map(l => esc(dateTxt(l.at) + ' · ' + l.action)).join(' — ') + '</div>' +
@@ -858,7 +932,7 @@
       '<div style="display:flex;gap:16px;flex-wrap:wrap"><label class="check"><input type="checkbox" data-in="adm-bai"' + (a.bai ? ' checked' : '') + '>Cập nhật số bài</label><label class="check"><input type="checkbox" data-in="adm-video"' + (a.video ? ' checked' : '') + '>Cập nhật video</label></div>' +
       '<button class="btn btn--primary btn--block" data-act="adm-analyze"' + (!(S.adm.parsed.sl || S.adm.parsed.vid) ? ' disabled' : '') + '>' + icon('search', 'ic--sm') + 'Phân tích</button>' +
       '</div></div></section>' + preview + '</div>' +
-      '<div class="grid span-5" style="align-content:start">' + saveCard + masterCard + '</div>' +
+      '<div class="grid span-5" style="align-content:start">' + (SHOW_SAVE ? saveCard : '') + masterCard + '</div>' +
       '</div>'
   }
 
@@ -881,10 +955,11 @@
 
   function viewAdminReps() {
     const f = S.apv
-    return '<div class="head"><h1 class="head__title">Danh sách PV</h1><div class="head__sub">Gán mã nhân sự và tên khác (bút danh, tên trên hệ thống video) để khớp file chính xác</div></div>' +
+    const n = D().reporters.filter(active)
+    return '<div class="head head--actions"><div><h1 class="head__title">Danh sách PV</h1><div class="head__sub">' + n.filter(r => r.type === 'pv').length + ' PV · ' + n.filter(r => r.type === 'ctv').length + ' CTV · thêm, sửa, xoá, điều chuyển và gán mã để khớp file</div></div><button class="btn btn--primary" data-act="rep-add">' + icon('plus', 'ic--sm') + 'Thêm phóng viên</button></div>' +
       '<section class="card"><div class="toolbar">' +
       '<label class="search">' + icon('search') + '<input class="input" type="search" placeholder="Tìm…" value="' + esc(f.q) + '" data-in="apv-q"></label>' +
-      '<select class="select" data-in="apv-unit"><option value="">Tất cả đơn vị</option>' + mainUnits().map(u => '<option value="' + u.id + '"' + (f.unit === u.id ? ' selected' : '') + '>' + esc(u.name) + '</option>').join('') + '</select>' +
+      '<select class="select" data-in="apv-unit"><option value="">Tất cả đơn vị</option>' + mainUnits().map(u => '<option value="' + u.id + '"' + (f.unit === u.id ? ' selected' : '') + '>' + esc(uName(u)) + '</option>').join('') + '</select>' +
       '<label class="check"><input type="checkbox" data-in="apv-missing"' + (f.missing ? ' checked' : '') + '>Chưa có mã</label></div>' +
       '<div class="table-wrap" id="apvList">' + adminRepsTable() + '</div></section>'
   }
@@ -893,11 +968,155 @@
     const f = S.apv
     const q = KpiParser.normName(f.q)
     const list = D().reporters.filter(r => (!f.unit || r.unit === f.unit) && (!f.missing || !(r.codes || []).length) && (!q || KpiParser.normName(r.name).includes(q)))
-    return '<table class="table"><thead><tr><th>Họ tên</th><th>Đơn vị</th><th>Loại</th><th>Mã nhân sự</th><th>Tên khác</th></tr></thead><tbody>' +
-      list.map(r => '<tr><td>' + link('pv/' + r.id, r.name, esc(r.name)) + '</td><td class="muted">' + esc(unit(r.unit).name) + '</td><td>' + (r.type === 'pv' ? '<span class="tag tag--primary">PV</span>' : '<span class="tag">CTV</span>') + (r.leader ? ' <span class="faint">· ' + esc(rep(r.leader).name) + '</span>' : '') + '</td>' +
-        '<td><input class="input" data-rep="' + r.id + '" data-field="codes" value="' + esc((r.codes || []).join(', ')) + '" placeholder="PV1234"></td>' +
-        '<td class="wrap"><input class="input" style="width:100%" data-rep="' + r.id + '" data-field="aliases" value="' + esc((r.aliases || []).join(', ')) + '" placeholder="Bút danh, tên video…"></td></tr>').join('') +
-      (list.length ? '' : '<tr><td colspan="5" class="empty">Không có dòng nào</td></tr>') + '</tbody></table>'
+      .sort((a, b) => (active(b) - active(a)) || mainUnits().indexOf(unit(a.unit)) - mainUnits().indexOf(unit(b.unit)) || (a.type === b.type ? 0 : a.type === 'pv' ? -1 : 1))
+    const ab = (act, id, ic, t, cls) => '<button class="icon-btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '" data-id="' + id + '" title="' + t + '" aria-label="' + t + '">' + icon(ic, 'ic--sm') + '</button>'
+    return '<table class="table"><thead><tr><th>Họ tên</th><th>Đơn vị</th><th>Loại</th><th>Mã nhân sự</th><th>Tên khác</th><th class="r">KPI năm</th><th class="r">Thao tác</th></tr></thead><tbody>' +
+      list.map(r => '<tr' + (active(r) ? '' : ' class="is-muted"') + '><td>' + link('pv/' + r.id, r.name, esc(r.name)) + (r.movedTo || r.movedFrom ? '<div class="pills" style="margin-top:4px">' + moveTags(r) + '</div>' : '') + '</td><td class="muted">' + esc(uName(unit(r.unit))) + '</td><td>' + (r.type === 'pv' ? '<span class="tag tag--primary">PV</span>' : '<span class="tag">CTV</span>') + (r.leader && rep(r.leader) ? ' <span class="faint">· ' + esc(rep(r.leader).name) + '</span>' : '') + '</td>' +
+        '<td class="num">' + (esc((r.codes || []).join(', ')) || '<span class="faint">—</span>') + '</td>' +
+        '<td class="wrap muted">' + (esc((r.aliases || []).join(', ')) || '<span class="faint">—</span>') + '</td>' +
+        '<td class="r num">' + (r.kpi ? fmt(r.kpi) : '<span class="faint">—</span>') + '</td>' +
+        '<td class="r"><div class="actions">' + ab('rep-edit', r.id, 'edit', 'Sửa') + (active(r) ? ab('rep-move', r.id, 'move', 'Điều chuyển') : '') + ab('rep-del', r.id, 'trash', 'Xoá', 'icon-btn--bad') + '</div></td></tr>').join('') +
+      (list.length ? '' : '<tr><td colspan="7" class="empty">Không có dòng nào</td></tr>') + '</tbody></table>'
+  }
+
+  function openModal(kind, id) {
+    const r = id ? rep(id) : null
+    const form = kind === 'add' ? { name: '', unit: S.apv.unit || mainUnits()[0].id, type: 'pv', leader: '', kpi: '', codes: '', aliases: '' }
+      : kind === 'edit' ? { name: r.name, unit: r.unit, type: r.type, leader: r.leader || '', kpi: r.kpi || '', codes: (r.codes || []).join(', '), aliases: (r.aliases || []).join(', ') }
+      : kind === 'move' ? { to: '', month: String(Math.min(11, lastDataMonth() + 1)), group: '1' } : {}
+    S.modal = { kind, id, form }
+    renderModal()
+    setTimeout(() => { const el = document.querySelector('#modal [data-mf]'); if (el) el.focus() }, 30)
+  }
+  function closeModal() { S.modal = null; renderModal() }
+
+  function mField(label, html, hint) { return '<label class="field"><span class="field__label">' + label + '</span>' + html + (hint ? '<span class="field__hint">' + hint + '</span>' : '') + '</label>' }
+  function mInput(name, val, attrs) { return '<input class="input" data-mf="' + name + '" value="' + esc(val) + '"' + (attrs || '') + '>' }
+  function mSelect(name, val, opts, attrs) { return '<select class="select" data-mf="' + name + '"' + (attrs || '') + '>' + opts.map(o => '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(val) ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' }
+
+  function renderModal() {
+    let el = $('#modal')
+    if (!el) { el = document.createElement('div'); el.id = 'modal'; document.body.appendChild(el) }
+    const md = S.modal
+    if (!md) { el.innerHTML = ''; document.body.classList.remove('has-modal'); return }
+    document.body.classList.add('has-modal')
+    const f = md.form
+    const r = md.id ? rep(md.id) : null
+    const unitOpts = mainUnits().map(u => [u.id, uName(u)])
+    let title = '', body = '', foot = ''
+    if (md.kind === 'add' || md.kind === 'edit') {
+      const leaders = D().reporters.filter(x => x.unit === f.unit && x.type === 'pv' && active(x) && (!r || x.id !== r.id))
+      title = md.kind === 'add' ? 'Thêm phóng viên' : 'Sửa thông tin'
+      body = '<div class="fields">' +
+        mField('Họ và tên *', mInput('name', f.name, ' placeholder="Nguyễn Văn A" autocomplete="off"')) +
+        '<div class="fields fields--2">' +
+        mField('Đơn vị', mSelect('unit', f.unit, unitOpts), md.kind === 'edit' ? 'Đổi ở đây là sửa sai đơn vị, chuyển cả số liệu cũ. Chuyển công tác giữa năm thì dùng "Điều chuyển".' : '') +
+        mField('Loại', mSelect('type', f.type, [['pv', 'Phóng viên'], ['ctv', 'Cộng tác viên']])) + '</div>' +
+        (f.type === 'ctv' ? mField('Thuộc nhóm của PV', mSelect('leader', f.leader, [['', 'Không thuộc nhóm']].concat(leaders.map(x => [x.id, x.name])))) : '') +
+        '<div class="fields fields--2">' +
+        mField('KPI năm (pageview)', mInput('kpi', f.kpi, ' type="number" min="0" step="1000" placeholder="Để trống nếu chưa giao"')) +
+        mField('Mã nhân sự', mInput('codes', f.codes, ' placeholder="PV1234, PV5678"')) + '</div>' +
+        mField('Tên khác', mInput('aliases', f.aliases, ' placeholder="Bút danh, tên trên hệ thống video…"'), 'Cách nhau bằng dấu phẩy. Dùng để khớp file Sản lượng và Video.') +
+        '</div>'
+      foot = '<button class="btn" data-act="modal-close">Huỷ</button><button class="btn btn--primary" data-act="rep-save">' + icon('check', 'ic--sm') + (md.kind === 'add' ? 'Thêm' : 'Lưu') + '</button>'
+    } else if (md.kind === 'move') {
+      const g = members(r).filter(active).length
+      title = 'Điều chuyển · ' + r.name
+      body = '<div class="fields"><div class="note note--box">Đang ở <strong>' + esc(uName(unit(r.unit))) + '</strong>. Số liệu trước tháng chuyển vẫn tính cho đơn vị cũ, từ tháng chuyển trở đi tính cho đơn vị mới. Tổng cá nhân của PV vẫn cộng dồn cả năm.</div>' +
+        '<div class="fields fields--2">' +
+        mField('Chuyển sang', mSelect('to', f.to, [['', 'Chọn đơn vị']].concat(unitOpts.filter(o => o[0] !== r.unit)))) +
+        mField('Từ tháng', mSelect('month', f.month, months().map((mo, i) => [i, mo.label]))) + '</div>' +
+        (g ? '<label class="check"><input type="checkbox" data-mf="group"' + (f.group === '1' ? ' checked' : '') + '>Chuyển cả nhóm ' + g + ' CTV</label>' : '') + '</div>'
+      foot = '<button class="btn" data-act="modal-close">Huỷ</button><button class="btn btn--primary" data-act="rep-move-save">' + icon('move', 'ic--sm') + 'Điều chuyển</button>'
+    } else if (md.kind === 'del') {
+      const c = repCum(r, 11, false)
+      const g = members(r).length
+      title = 'Xoá ' + r.name + '?'
+      body = '<div class="fields"><div class="note">Xoá khỏi danh sách ' + esc(uName(unit(r.unit))) + '.' + (c.total ? ' <strong class="bad">' + fmt(c.total) + ' pageview và ' + full(c.bai) + ' bài</strong> của người này sẽ không còn tính vào phần đóng góp của PV.' : '') + (g ? ' ' + g + ' CTV trong nhóm sẽ thành CTV tự do.' : '') + '</div><div class="note note--box">Nếu người này chỉ chuyển công tác, hãy dùng <strong>Điều chuyển</strong> để giữ số liệu.</div></div>'
+      foot = '<button class="btn" data-act="modal-close">Huỷ</button><button class="btn btn--danger" data-act="rep-del-save">' + icon('trash', 'ic--sm') + 'Xoá</button>'
+    }
+    el.innerHTML = '<div class="modal" data-act="modal-bg"><div class="modal__box" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="modal__head"><h2>' + esc(title) + '</h2><button class="icon-btn" data-act="modal-close" aria-label="Đóng">' + icon('x', 'ic--sm') + '</button></div><div class="modal__body">' + body + '</div><div class="modal__foot">' + foot + '</div></div></div>'
+  }
+
+  function uniqueId(base) {
+    let id = base, n = 2
+    while (D().reporters.some(r => r.id === id)) id = base + '-' + n++
+    return id
+  }
+  const splitList = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean)
+
+  function saveRep() {
+    const md = S.modal
+    const f = md.form
+    const name = String(f.name || '').replace(/\s+/g, ' ').trim()
+    if (!name) { toast('Nhập họ tên', true); return }
+    const kpi = f.kpi === '' || f.kpi == null ? null : Math.max(0, Number(f.kpi)) || null
+    const leader = f.type === 'ctv' && f.leader ? f.leader : null
+    if (md.kind === 'add') {
+      D().reporters.push({ id: uniqueId(f.unit + '-' + KpiParser.slug(name)), name, unit: f.unit, type: f.type, leader, kpi, codes: splitList(f.codes).map(c => c.toUpperCase()), aliases: splitList(f.aliases), monthly: Array(12).fill(null) })
+      toast('Đã thêm ' + name)
+    } else {
+      const r = rep(md.id)
+      const unitChanged = r.unit !== f.unit
+      if ((r.type === 'pv' && f.type === 'ctv') || unitChanged) members(r).forEach(x => { x.leader = null })
+      Object.assign(r, { name, unit: f.unit, type: f.type, leader, kpi, codes: splitList(f.codes).map(c => c.toUpperCase()), aliases: splitList(f.aliases) })
+      toast('Đã lưu ' + name)
+    }
+    setDirty(true)
+    closeModal()
+    render()
+  }
+
+  function splitMove(r, to, k, leader) {
+    const n = JSON.parse(JSON.stringify(r))
+    n.id = uniqueId(to + '-' + KpiParser.slug(r.name))
+    n.unit = to
+    n.leader = leader
+    n.monthly = r.monthly.map((v, i) => i >= k ? v : null)
+    n.movedFrom = { id: r.id, month: k }
+    delete n.movedTo
+    delete n.isLeader
+    D().reporters.push(n)
+    r.monthly = r.monthly.map((v, i) => i < k ? v : null)
+    r.movedTo = { id: n.id, month: k }
+    return n
+  }
+
+  function moveRep() {
+    const md = S.modal
+    const f = md.form
+    const r = rep(md.id)
+    if (!f.to) { toast('Chọn đơn vị mới', true); return }
+    const k = Number(f.month)
+    const mem = members(r).filter(active)
+    const withGroup = f.group === '1'
+    if (k === 0) {
+      r.unit = f.to
+      if (withGroup) mem.forEach(x => { x.unit = f.to })
+      else mem.forEach(x => { x.leader = null })
+      r.leader = null
+    } else {
+      const n = splitMove(r, f.to, k, null)
+      mem.forEach(x => { if (withGroup) splitMove(x, f.to, k, n.id) })
+    }
+    setDirty(true)
+    toast('Đã điều chuyển ' + r.name + ' sang ' + uName(unit(f.to)))
+    closeModal()
+    render()
+  }
+
+  function deleteRep() {
+    const r = rep(S.modal.id)
+    D().reporters.forEach(x => {
+      if (x.leader === r.id) x.leader = null
+      if (x.movedFrom && x.movedFrom.id === r.id) delete x.movedFrom
+      if (x.movedTo && x.movedTo.id === r.id) delete x.movedTo
+    })
+    D().reporters = D().reporters.filter(x => x !== r)
+    setDirty(true)
+    toast('Đã xoá ' + r.name)
+    closeModal()
+    render()
   }
 
   function render(scrollTop) {
@@ -1108,6 +1327,15 @@
     else if (act === 'open') { e.preventDefault(); S.ui.open[t.dataset.key] = !S.ui.open[t.dataset.key]; saveUI(); renderSidebar() }
     else if (act === 'group') { S.ui.groups[t.dataset.key] = !S.ui.groups[t.dataset.key]; saveUI(); renderSidebar() }
     else if (act === 'month') { S.m = Number(t.dataset.i); render() }
+    else if (act === 'rep-add') openModal('add')
+    else if (act === 'rep-edit') openModal('edit', t.dataset.id)
+    else if (act === 'rep-move') openModal('move', t.dataset.id)
+    else if (act === 'rep-del') openModal('del', t.dataset.id)
+    else if (act === 'modal-close') closeModal()
+    else if (act === 'modal-bg') { if (e.target === t) closeModal() }
+    else if (act === 'rep-save') saveRep()
+    else if (act === 'rep-move-save') moveRep()
+    else if (act === 'rep-del-save') deleteRep()
     else if (act === 'adm-analyze') analyze()
     else if (act === 'adm-apply') applyReport()
     else if (act === 'adm-reset') { S.adm.files = {}; S.adm.parsed = {}; S.adm.report = null; render() }
@@ -1120,12 +1348,12 @@
 
   document.addEventListener('input', e => {
     const t = e.target
+    if (t.dataset.mf && S.modal) { S.modal.form[t.dataset.mf] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; return }
     const k = t.dataset.in
     if (k === 'pv-q') { S.pv.q = t.value; $('#pvList').innerHTML = repsList() }
     else if (k === 'apv-q') { S.apv.q = t.value; $('#apvList').innerHTML = adminRepsTable() }
     if (t.dataset.gh) {
       if (t.dataset.gh === 'token') { try { sessionStorage.setItem(GH_TOKEN_KEY, t.value.trim()) } catch (err) {} }
-      else { const c = ghCfg(); c[t.dataset.gh] = t.value.trim(); try { localStorage.setItem(GH_KEY, JSON.stringify(c)) } catch (err) {} }
     }
   })
 
@@ -1133,6 +1361,12 @@
     const t = e.target
     const k = t.dataset.in
     if (t.dataset.file) { handleFile(t.dataset.file, t.files[0]); return }
+    if (t.dataset.mf && S.modal) {
+      S.modal.form[t.dataset.mf] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value
+      if (t.dataset.mf === 'type' || t.dataset.mf === 'unit') { if (t.dataset.mf === 'unit') S.modal.form.leader = ''; renderModal() }
+      return
+    }
+    if (k === 'cmp') { setCmp(t.value); return }
     if (t.dataset.rep) {
       const r = rep(t.dataset.rep)
       const vals = t.value.split(',').map(s => s.trim()).filter(Boolean)
@@ -1182,7 +1416,7 @@
   document.addEventListener('pointerover', e => { const t = e.target.closest('.chart__hit'); if (t) showTip(t) })
   document.addEventListener('pointerdown', e => { const t = e.target.closest('.chart__hit'); if (t) showTip(t) })
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#app').classList.remove('is-drawer') })
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('#app').classList.remove('is-drawer'); if (S.modal) closeModal() } })
 
   let lastW = window.innerWidth
   window.addEventListener('resize', () => {
@@ -1235,6 +1469,23 @@
       if (d && d.data && d.data.period && d.data.period.id === y) { S.data = d.data; S.dirty = true }
     } catch (e) {}
     S.m = lastDataMonth()
+    await loadCmp()
+    render()
+  }
+
+  async function loadCmp() {
+    const opts = cmpYears()
+    let y = S.ui.cmp === 'none' ? null : Number(S.ui.cmp)
+    if (!opts.includes(y)) y = S.ui.cmp === 'none' ? null : (opts.includes(S.year - 1) ? S.year - 1 : null)
+    S.cmpYear = y
+    S.cmpData = null
+    if (y) { try { S.cmpData = await loadYear(y) } catch (e) { S.cmpYear = null } }
+  }
+
+  async function setCmp(v) {
+    S.ui.cmp = v === 'none' ? 'none' : Number(v)
+    saveUI()
+    await loadCmp()
     render()
   }
 

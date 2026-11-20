@@ -10,7 +10,7 @@
   ]
 
   const UNITS = [
-    { id: 'thoi-su', name: 'Thời sự - Chính trị', type: 'cm', ban: 'ctxh', sheet: 'Thời sự - CTXH', kpiName: 'Thời sự - Chính Trị' },
+    { id: 'thoi-su', name: 'Thời sự - Chính trị', type: 'cm', ban: 'ctxh', sheet: 'Thời sự - CTXH', kpiName: ['Thời sự - Chính Trị', 'Thời sự'] },
     { id: 'doi-song', name: 'Đời sống', type: 'cm', ban: 'ctxh', sheet: 'Đời Sống', kpiName: 'Đời sống' },
     { id: 'suc-khoe', name: 'Sức khoẻ', type: 'cm', ban: 'ctxh', sheet: 'Sức Khoẻ', kpiName: 'Sức khỏe' },
     { id: 'kinh-te', name: 'Kinh tế - Du lịch - Tiêu dùng', type: 'cm', ban: 'kinh-te', sheet: 'Kinh Tế - Du Lịch - Tiêu Dùng', kpiName: 'Kinh Tế - Du Lịch - Tiêu Dùng' },
@@ -26,6 +26,10 @@
     { id: 'da-nang', name: 'Đà Nẵng', type: 'vp', ban: null, sheet: 'VP Đà Nẵng', kpiName: 'Đà Nẵng' },
     { id: 'can-tho', name: 'Cần Thơ', type: 'vp', ban: null, sheet: 'VP Cần Thơ', kpiName: 'Cần Thơ' },
     { id: 'nha-trang', name: 'Nha Trang', type: 'vp', ban: null, sheet: 'VP Nha Trang', kpiName: 'Nha Trang' },
+    { id: 'dong-nam-bo', name: 'Đông Nam Bộ', type: 'vp', ban: null, sheet: 'VP Đông Nam Bộ', kpiName: 'Đông Nam Bộ', optional: true },
+    { id: 'binh-dinh', name: 'Bình Định', type: 'vp', ban: null, sheet: 'VP Bình Định', kpiName: 'Bình Định', optional: true },
+    { id: 'dong-bac-bo', name: 'Đông Bắc Bộ', type: 'vp', ban: null, sheet: 'VP Đông Bắc Bộ', kpiName: 'Đông Bắc Bộ', optional: true },
+    { id: 'bac-trung-bo', name: 'Bắc Trung Bộ', type: 'vp', ban: null, sheet: 'VP Bắc Trung Bộ', kpiName: 'Bắc Trung Bộ', optional: true },
     { id: 'media', name: 'Media', type: 'media', ban: null, sheet: null, kpiName: 'Media' }
   ]
 
@@ -118,8 +122,10 @@
     const reporters = []
     const usedIds = new Set()
 
+    const visible = name => wb.sheets.some(sh => sh.name.trim() === name.trim() && sh.state === 'visible')
     for (const cfg of UNITS) {
-      const top = kpiTop[normName(cfg.kpiName)] || {}
+      if (cfg.optional && !visible(cfg.sheet)) continue
+      const top = [].concat(cfg.kpiName).map(n => kpiTop[normName(n)]).find(Boolean) || {}
       const unit = {
         id: cfg.id, name: cfg.name, type: cfg.type, ban: cfg.ban,
         metric: cfg.type === 'media' ? 'playtime' : 'pageview',
@@ -267,6 +273,7 @@
     const usedSL = new Set()
     const usedVid = new Set()
     data.reporters.forEach(rep => {
+      if ((rep.movedTo && monthIdx >= rep.movedTo.month) || (rep.movedFrom && monthIdx < rep.movedFrom.month)) return
       const names = new Set([normName(rep.name)].concat((rep.aliases || []).map(normName)))
       const codes = new Set((rep.codes || []).map(c => String(c).trim().toUpperCase()))
       const cur = rep.monthly[monthIdx] || [0, 0, 0]
@@ -332,7 +339,7 @@
       version: 1,
       period: makePeriod(year),
       bans: BANS.map(b => ({ id: b.id, name: b.name, short: b.short, kpiPV: null })),
-      units: UNITS.map(u => ({ id: u.id, name: u.name, type: u.type, ban: u.ban, metric: u.type === 'media' ? 'playtime' : 'pageview', prev: null, kpi: null, monthly: Array(12).fill(null) })),
+      units: UNITS.filter(u => !u.optional).map(u => ({ id: u.id, name: u.name, type: u.type, ban: u.ban, metric: u.type === 'media' ? 'playtime' : 'pageview', prev: null, kpi: null, monthly: Array(12).fill(null) })),
       reporters: [],
       updatedAt: null,
       log: []
